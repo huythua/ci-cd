@@ -56,9 +56,8 @@ def calculate(a: float, b: float, op: str = "add"):
 
 @app.get("/api/v1/discount")
 def calculate_discount(price: float, rate: float):
-    """Tính giá sau khi giảm giá (Cố ý viết sai logic để thử nghiệm CI)"""
-    # Lỗi cố ý: Thay vì price * (1 - rate), lại viết nhầm thành cộng giá
-    final_price = price + (price * rate)
+    """Tính giá sau khi giảm giá (Đã fix logic đúng chuẩn)"""
+    final_price = price * (1 - rate)
     return {
         "original_price": price,
         "discount_rate": rate,
