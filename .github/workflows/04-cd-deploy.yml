@@ -30,21 +30,55 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🚀 Simulate Deployment (Docker Compose / SSH)
-        run: |
-          echo "=================================================="
-          echo "Deploying to Staging server..."
-          echo "Image Version: ${{ github.sha }}"
-          echo "Pulling latest images from GHCR..."
-          echo "docker-compose -f deployments/docker-compose/docker-compose.prod.yml up -d --pull always"
-          echo "Deployment finished successfully!"
-          echo "=================================================="
+      - name: 🚀 Deploy to Remote VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            echo "=================================================="
+            echo "🚀 1. Connected to VPS: $(hostname)"
+            echo "🚀 2. Authenticating Docker Registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: 🩺 Smoke Test & Health Check
-        run: |
-          echo "Performing smoke tests on staging endpoints..."
-          # Giả lập lệnh kiểm tra health check
-          echo "GET http://staging.example.com/health -> 200 OK"
+            echo "🚀 3. Creating App Directory..."
+            mkdir -p /opt/devops-lab
+            cd /opt/devops-lab
+
+            echo "🚀 4. Pulling latest images..."
+            docker pull ghcr.io/${{ github.repository }}/backend-api:latest || true
+            docker pull ghcr.io/${{ github.repository }}/frontend-web:latest || true
+
+            echo "🚀 5. Restarting services..."
+            docker stop devops-backend-api devops-frontend-web 2>/dev/null || true
+            docker rm devops-backend-api devops-frontend-web 2>/dev/null || true
+
+            # Chạy Backend API
+            docker run -d \
+              --name devops-backend-api \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              -e APP_ENV=development \
+              -e APP_VERSION=${{ github.sha }} \
+              ghcr.io/${{ github.repository }}/backend-api:latest
+
+            # Chạy Frontend Web
+            docker run -d \
+              --name devops-frontend-web \
+              --restart unless-stopped \
+              -p 3000:3000 \
+              -e NODE_ENV=production \
+              -e API_URL=http://localhost:8000 \
+              ghcr.io/${{ github.repository }}/frontend-web:latest
+
+            echo "🚀 6. Pruning unused images..."
+            docker image prune -f
+
+            echo "✅ Deployment to VPS completed successfully!"
+            echo "=================================================="
 
   # ===================================================
   # Deploy to Production Environment (Yêu cầu Approval)
