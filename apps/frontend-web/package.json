@@ -1,0 +1,14 @@
+{
+  "name": "devops-frontend-web",
+  "version": "1.0.0",
+  "description": "Frontend UI for DevOps CI/CD Lab",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {}
+}

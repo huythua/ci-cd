@@ -1,0 +1,94 @@
+# =========================================================
+# GitLab CI/CD Pipeline Configuration
+# =========================================================
+
+stages:
+  - lint-and-test
+  - security-scan
+  - build-and-push
+  - deploy-staging
+  - deploy-production
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  BACKEND_IMAGE: "$CI_REGISTRY_IMAGE/backend-api:$CI_COMMIT_SHORT_SHA"
+  FRONTEND_IMAGE: "$CI_REGISTRY_IMAGE/frontend-web:$CI_COMMIT_SHORT_SHA"
+
+# ---------------------------------------------------------
+# STAGE 1: Lint & Unit Tests
+# ---------------------------------------------------------
+test:backend:
+  stage: lint-and-test
+  image: python:3.11-slim
+  before_script:
+    - cd apps/backend-api
+    - pip install --no-cache-dir -r requirements.txt
+  script:
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source
+    - pytest tests/ --cov=app --cov-report=term
+
+test:frontend:
+  stage: lint-and-test
+  image: node:20-alpine
+  before_script:
+    - cd apps/frontend-web
+    - npm install
+  script:
+    - npm test
+
+# ---------------------------------------------------------
+# STAGE 2: Security Scanning
+# ---------------------------------------------------------
+security:trivy:
+  stage: security-scan
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy fs --scanners vuln,secret --severity CRITICAL,HIGH apps/
+
+# ---------------------------------------------------------
+# STAGE 3: Build & Push Images
+# ---------------------------------------------------------
+build:docker:
+  stage: build-and-push
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker build -t "$BACKEND_IMAGE" -f ./apps/backend-api/Dockerfile ./apps/backend-api
+    - docker build -t "$FRONTEND_IMAGE" -f ./apps/frontend-web/Dockerfile ./apps/frontend-web
+    - docker push "$BACKEND_IMAGE"
+    - docker push "$FRONTEND_IMAGE"
+  only:
+    - main
+
+# ---------------------------------------------------------
+# STAGE 4: Deploy to Staging
+# ---------------------------------------------------------
+deploy:staging:
+  stage: deploy-staging
+  environment:
+    name: staging
+    url: https://staging.example.com
+  script:
+    - echo "Deploying $BACKEND_IMAGE and $FRONTEND_IMAGE to Staging..."
+  only:
+    - main
+
+# ---------------------------------------------------------
+# STAGE 5: Deploy to Production (Manual Trigger)
+# ---------------------------------------------------------
+deploy:production:
+  stage: deploy-production
+  environment:
+    name: production
+    url: https://example.com
+  script:
+    - echo "Deploying to Production cluster..."
+  when: manual
+  only:
+    - main

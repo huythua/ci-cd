@@ -1,0 +1,69 @@
+name: 04 - Continuous Delivery (Automated Deployment)
+
+on:
+  workflow_run:
+    workflows: ["02 - Build & Push Docker Images"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Môi trường triển khai'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  # ===================================================
+  # Deploy to Staging Environment
+  # ===================================================
+  deploy-staging:
+    name: Deploy to Staging
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Simulate Deployment (Docker Compose / SSH)
+        run: |
+          echo "=================================================="
+          echo "Deploying to Staging server..."
+          echo "Image Version: ${{ github.sha }}"
+          echo "Pulling latest images from GHCR..."
+          echo "docker-compose -f deployments/docker-compose/docker-compose.prod.yml up -d --pull always"
+          echo "Deployment finished successfully!"
+          echo "=================================================="
+
+      - name: 🩺 Smoke Test & Health Check
+        run: |
+          echo "Performing smoke tests on staging endpoints..."
+          # Giả lập lệnh kiểm tra health check
+          echo "GET http://staging.example.com/health -> 200 OK"
+
+  # ===================================================
+  # Deploy to Production Environment (Yêu cầu Approval)
+  # ===================================================
+  deploy-production:
+    name: Deploy to Production
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production # Có thể cấu hình Protection Rules (Manual Approval) trên GitHub Repo Settings
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚢 Zero-Downtime Deployment
+        run: |
+          echo "=================================================="
+          echo "Deploying to PRODUCTION cluster..."
+          echo "Applying Kubernetes manifests / Helm charts..."
+          echo "kubectl set image deployment/backend-api backend-api=ghcr.io/${{ github.repository }}/backend-api:sha-${{ github.sha }}"
+          echo "Rolling update in progress..."
+          echo "=================================================="

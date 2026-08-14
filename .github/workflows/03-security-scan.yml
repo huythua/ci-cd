@@ -1,0 +1,51 @@
+name: 03 - DevSecOps (Vulnerability & Secrets Scan)
+
+on:
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Quét bảo mật định kỳ hàng tuần vào 00:00 Chủ Nhật
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  # ===================================================
+  # Scan 1: Secret Leaks Detection
+  # ===================================================
+  gitleaks-scan:
+    name: Gitleaks Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🛡️ Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ===================================================
+  # Scan 2: Container Image Vulnerability Scan (Trivy)
+  # ===================================================
+  trivy-scan:
+    name: Trivy Container Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐳 Build Local Image for Scanning
+        run: |
+          docker build -t devops-backend-api:scan -f ./apps/backend-api/Dockerfile ./apps/backend-api
+
+      - name: 🔍 Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'devops-backend-api:scan'
+          format: 'table'
+          exit-code: '0' # Đổi thành 1 nếu muốn chặn build khi có lỗi CRITICAL
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
