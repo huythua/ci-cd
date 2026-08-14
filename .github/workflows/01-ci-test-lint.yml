@@ -2,7 +2,7 @@ name: 01 - Continuous Integration (Lint & Test)
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, 'feature/**' ]
     paths:
       - 'apps/**'
       - '.github/workflows/01-ci-test-lint.yml'

@@ -28,3 +28,10 @@ def test_calculate_divide_by_zero():
     response = client.get("/api/v1/calculate?a=10&b=0&op=divide")
     assert response.status_code == 400
     assert "Cannot divide by zero" in response.json()["detail"]
+
+def test_calculate_discount():
+    # Giá gốc 100, giảm giá 20% (0.2) => Giá sau giảm phải là 80.0
+    response = client.get("/api/v1/discount?price=100&rate=0.2")
+    assert response.status_code == 200
+    assert response.json()["final_price"] == 80.0
+
