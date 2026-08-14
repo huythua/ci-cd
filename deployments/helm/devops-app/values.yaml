@@ -1,0 +1,61 @@
+# Default values for devops-app (Development Environment)
+
+global:
+  environment: development
+
+backend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/huythua/ci-cd/backend-api
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  autoscaling:
+    enabled: false
+  env:
+    APP_ENV: "development"
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/huythua/ci-cd/frontend-web
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 30m
+      memory: 32Mi
+  autoscaling:
+    enabled: false
+  env:
+    NODE_ENV: "production"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: dev.lab.local
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /
+          pathType: Prefix
+          service: frontend

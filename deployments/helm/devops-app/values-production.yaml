@@ -1,0 +1,65 @@
+# Production values for devops-app (High Availability & Auto-scaling)
+
+global:
+  environment: production
+
+backend:
+  replicaCount: 3
+  image:
+    repository: ghcr.io/huythua/ci-cd/backend-api
+    pullPolicy: Always
+    tag: "latest"
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 75
+    targetMemoryUtilizationPercentage: 80
+  env:
+    APP_ENV: "production"
+
+frontend:
+  replicaCount: 3
+  image:
+    repository: ghcr.io/huythua/ci-cd/frontend-web
+    pullPolicy: Always
+    tag: "latest"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 75
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: app.example.com
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /
+          pathType: Prefix
+          service: frontend
+  tls:
+    - secretName: app-example-tls
+      hosts:
+        - app.example.com
